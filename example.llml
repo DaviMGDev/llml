@@ -1,0 +1,400 @@
+// =============================================================================
+// LLML — LLM Language
+// A pseudolanguage to guide the behavior of an LLM-based agent.
+// The agent reads this and acts: running tools, reading files, making decisions.
+// Not deterministic — but not pure simulation either. It's a behavioral spec.
+// =============================================================================
+
+// ── 1. COMMENTS ──────────────────────────────────────────────────────────────
+
+// single-line: the agent ignores this
+/*
+  multi-line: also ignored — context for human readers
+*/
+
+// ── 2. VARIABLES — state the agent tracks ────────────────────────────────────
+
+// variables are labels for things the agent should remember
+project_root = "/home/user/my-project"
+backup_dir = "/tmp/backups"
+max_retries = 3
+
+// type annotations are hints to the agent, not enforced constraints
+server: remote host = "192.168.1.100"
+port: number = 3000
+debug_mode: boolean = true
+
+// variables can reference real things in the environment
+current_branch: git branch = "main"
+last_commit_hash = ""   // will be filled at runtime
+
+// ── 3. AGENT ACTIONS — the meat of LLML ──────────────────────────────────────
+
+// bash commands are meant to be EXECUTED via the agent's tools, not simulated
+ls -la $project_root
+git status
+npm test
+
+// you can mix natural language with commands — the agent interprets intent
+read the README.md in $project_root and summarize its contents
+
+// conditionals drive agent decisions
+if file_exists($project_root + "/package.json") {
+    npm install
+    npm run build
+} else {
+    print("no package.json found — skipping build")
+}
+
+// loops drive repeated actions
+for file in ls *.js {
+    npx eslint --fix $file
+}
+
+// ── 4. FUNCTIONS — reusable agent behavior templates ─────────────────────────
+
+// functions describe *actions* the agent should take, not abstract computations
+
+deploy(env) {
+    // the agent interprets this as a sequence of steps
+    print("deploying to " + env + "...")
+    npm run build
+    
+    if env == "production" {
+        rsync -avz dist/ user@prod-server:/var/www/app
+        ssh user@prod-server "systemctl restart app"
+    } else {
+        rsync -avz dist/ user@staging-server:/var/www/app-staging
+    }
+    
+    print("deployment to " + env + " complete!")
+}
+
+rollback(version) {
+    print("rolling back to version " + version)
+    // the agent will figure out the concrete steps
+    ssh user@prod-server "docker pull app:" + version
+    ssh user@prod-server "docker-compose up -d"
+}
+
+// call it
+deploy("staging")
+
+// ── 5. THE ~= OPERATOR — semantic judgment ───────────────────────────────────
+
+// ~= is NOT a type check. It's a semantic classifier: the agent judges whether
+// the left side matches the *concept* described on the right.
+
+error_message = "FATAL: cannot connect to database at 10.0.0.1:5432"
+
+when error_message ~= "connection error" {
+    // agent recognizes this as a network/db issue
+    print("database unreachable — checking network...")
+    ping -c 3 10.0.0.1
+    netstat -tlnp | grep 5432
+} else when error_message ~= "permission denied" {
+    print("permission issue — checking credentials...")
+    whoami
+    ls -la /etc/secrets/
+} else when error_message ~= "out of memory" {
+    print("OOM detected — checking resource usage...")
+    free -h
+    top -b -n 1 | head -20
+} else {
+    print("unknown error — capturing diagnostics...")
+    dmesg | tail -30
+    journalctl -n 50 --no-pager
+}
+
+// ── 6. THE when KEYWORD — state-based agent branching ────────────────────────
+
+// like a router for the agent's decision-making
+
+system_state = ""
+
+when $system_state ~= "healthy" {
+    print("system is healthy — running routine checks...")
+    df -h
+    uptime
+} else when $system_state ~= "degraded" {
+    print("system degraded — investigation needed")
+    // the agent decides what probes to run
+    investigate()
+} else when $system_state ~= "down" {
+    print("CRITICAL: system is down")
+    // trigger emergency protocols
+    alert_oncall("system is down — immediate attention required")
+    emergency_recovery()
+} 
+
+// ── 7. THE .tip() HINT SYSTEM ──────────────────────────────────────────────
+
+// .tip() gives the agent additional context on how to interpret a line
+
+cleanup_temp_files() .tip(remove all .tmp files older than 7 days in /tmp, use find -mtime)
+
+// without the tip, the agent might do something generic. with it, it's precise.
+find /tmp -name "*.tmp" -mtime +7 -delete
+
+// tips can also guide complexity
+migrate_database() .tip(this is a destructive operation — ask the user for confirmation first before doing anything)
+
+// ── 8. NATURAL LANGUAGE — the agent fills in the blanks ──────────────────────
+
+// the agent interprets natural language as actionable intent
+
+investigate the recent spike in 500 errors
+// agent will: check logs, look at metrics, correlate with deployments
+
+// you can ask the agent questions inline
+what is the current disk usage on this machine?
+// agent runs: df -h (or similar)
+
+// the agent uses its judgment
+find all large files in $project_root that haven't been modified in 6 months
+// agent decides what "large" means (maybe >100MB) and runs find
+
+// ── 9. MIXING PARADIGMS ──────────────────────────────────────────────────────
+
+// define a data structure as JSON
+config = {
+    "services": ["api", "worker", "scheduler"],
+    "health_endpoints": {
+        "api": "http://localhost:3000/health",
+        "worker": "http://localhost:3001/health"
+    },
+    "alert_email": "ops@example.com"
+}
+
+// then use it in agent actions
+for service in config.services {
+    endpoint = config.health_endpoints[service]
+    // the agent runs a real health check
+    curl -f -s -o /dev/null $endpoint .tip(check if the endpoint returns HTTP 200)
+    
+    if $result ~= "service unhealthy" {
+        print("service " + service + " is DOWN")
+        send_email(
+            to: config.alert_email,
+            subject: "[ALERT] " + service + " is down",
+            body: "Health check failed for " + endpoint
+        ) .tip(use curl or mail command to actually send the email)
+    }
+}
+
+// ── 10. CLASSES — structured agent behaviors ─────────────────────────────────
+
+class ServiceManager {
+    name: text
+    pid: number = -1
+
+    constructor(name) {
+        this.name = name
+    }
+
+    start() {
+        print("starting " + this.name)
+        systemctl start $this.name
+        // agent checks if it actually started
+        this.pid = pgrep -f $this.name
+    }
+
+    stop() {
+        print("stopping " + this.name)
+        systemctl stop $this.name
+        this.pid = -1
+    }
+
+    restart() {
+        this.stop()
+        this.start()
+    }
+
+    health_check() .tip(run the appropriate health check for this service) {
+        if this.name ~= "web server" {
+            curl -f http://localhost:80
+        } else if this.name ~= "database" {
+            pg_isready
+        } else {
+            systemctl is-active $this.name
+        }
+    }
+}
+
+// usage
+api = new ServiceManager("api")
+db = new ServiceManager("postgresql")
+
+api.start()
+db.start()
+
+// health check all services
+api.health_check()
+db.health_check()
+
+// ── 11. REAL-WORLD SCENARIO: CI/CD pipeline ──────────────────────────────────
+
+// this reads like a spec AND drives actual agent behavior
+
+pipeline: concept = "CI/CD deployment"
+
+step("lint") {
+    print("running linter...")
+    npm run lint .tip(fix any auto-fixable issues with --fix)
+}
+
+step("test") {
+    print("running tests...")
+    npm run test:coverage
+    
+    // agent reads the test output to decide pass/fail
+    if $test_results ~= "tests failed" {
+        print("tests failed — aborting pipeline")
+        analyze_test_failures() .tip(look at the test output and identify which tests failed)
+        return .tip(stop the pipeline here)
+    }
+}
+
+step("build") {
+    print("building...")
+    npm run build
+    
+    if $build_output ~= "build failed" {
+        print("build failed — aborting")
+        analyze_build_errors()
+        return
+    }
+}
+
+step("deploy") {
+    print("deploying to production...")
+    deploy("production")
+}
+
+step("smoke_test") {
+    print("running smoke tests against production...")
+    curl -f https://app.example.com/health
+    curl -f https://api.example.com/v1/health
+    
+    if $smoke_results ~= "all endpoints healthy" {
+        print("deployment successful!")
+    } else {
+        print("smoke tests failed — initiating rollback")
+        rollback("previous")
+    }
+}
+
+// execute the pipeline
+pipeline.run()
+
+// ── 12. ASKING THE USER ──────────────────────────────────────────────────────
+
+// sometimes the agent needs input from the user
+
+before proceeding with the database migration, confirm with the user that they have a recent backup
+
+// the agent will ask the user (using ask_user or similar) before continuing
+
+// you can also define explicit interaction points
+confirm("are you sure you want to delete all logs?") {
+    // agent only proceeds if user confirms
+    rm -rf /var/log/old/*
+    print("logs cleared")
+}
+
+// ── 13. ERROR HANDLING — agent-level resilience ──────────────────────────────
+
+// errors are real — the agent should handle them gracefully
+
+update_system() {
+    print("updating system packages...")
+    
+    apt update
+    apt upgrade -y
+    
+    if $last_exit_code != 0 {
+        print("package update failed — investigating...")
+        cat /var/log/apt/term.log | tail -30
+        when $apt_error ~= "held broken packages" {
+            apt --fix-broken install
+            apt upgrade -y
+        } else when $apt_error ~= "network issue" {
+            print("network unreachable — will retry in 30 seconds")
+            sleep 30
+            update_system() .tip(retry the update)
+        } else {
+            print("unexpected error — notify user")
+            ask_user("package update failed with an unknown error. how should I proceed?")
+        }
+    }
+}
+
+// ── 14. TIPS FOR THE AGENT (meta-instructions) ───────────────────────────────
+
+// these look like top-level comments but the agent reads them as behavioral rules
+
+// @rule: before modifying any file, check if it exists and show a diff
+// @rule: when running destructive commands, ask the user for confirmation
+// @rule: if a command fails, always capture stderr and show it to the user
+// @rule: prefer explicit paths over relative paths
+
+// ── 15. EXAMPLE: DATA PIPELINE (agent actually processes data) ───────────────
+
+raw_data_path = "./data/raw/users.csv"
+clean_data_path = "./data/clean/users.json"
+
+// step 1 — check if source exists
+if file_exists($raw_data_path) {
+    print("found raw data at " + raw_data_path)
+} else {
+    print("error: " + raw_data_path + " not found")
+    ask_user("where is the raw data file?")
+}
+
+// step 2 — inspect the data
+head -5 $raw_data_path
+
+// step 3 — process based on what the agent sees
+when $raw_data_preview ~= "has header row" {
+    print("detected CSV with headers — proceeding with standard parse")
+    // agent chooses appropriate tool
+    python3 -c "
+import csv, json
+with open('$raw_data_path') as f:
+    reader = csv.DictReader(f)
+    rows = list(reader)
+with open('$clean_data_path', 'w') as f:
+    json.dump(rows, f, indent=2)
+"
+} else when $raw_data_preview ~= "tab-separated" {
+    print("detected TSV format — adjusting parser")
+    python3 -c "
+import csv, json
+with open('$raw_data_path') as f:
+    reader = csv.DictReader(f, delimiter='\t')
+    rows = list(reader)
+with open('$clean_data_path', 'w') as f:
+    json.dump(rows, f, indent=2)
+"
+} else {
+    print("unknown format — inspecting more closely")
+    wc -l $raw_data_path
+    file $raw_data_path
+    ask_user("unrecognized data format. how should I parse this?")
+}
+
+// step 4 — validate output
+if file_exists($clean_data_path) {
+    print("clean data written to " + $clean_data_path)
+    wc -c $clean_data_path
+    python3 -c "import json; data=json.load(open('$clean_data_path')); print(f'{len(data)} records')"
+} else {
+    print("error: clean data file was not created")
+}
+
+// ── THAT'S IT ────────────────────────────────────────────────────────────────
+//
+// LLML is a behavioral specification language for agentic systems.
+// The agent reads it, interprets the intent, and CARRIES IT OUT using real tools.
+// It's not deterministic, it's not a simulation — it's structured guidance
+// for an intelligent agent navigating the real world.

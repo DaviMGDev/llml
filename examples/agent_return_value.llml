@@ -1,8 +1,0 @@
-# agent() returns a value when its result is bound to a variable.
-# Demonstrates: the agent() return contract — bind to capture, statement to discard.
-
-file = agent("which file in this directory has more lines?")
-print(file)
-
-# As a statement: fire-and-forget, no value captured.
-agent("write an index.html with a dark theme")

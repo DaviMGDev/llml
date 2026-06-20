@@ -1,8 +1,0 @@
-# Compose multiple agent() calls, passing one result into the next.
-# Demonstrates: chaining agent() calls, interpolation of prior results.
-
-topics = agent("list the main topics discussed in ${file.path}")
-summary = agent("write a one-paragraph summary covering: ${topics}")
-print(summary)
-
-agent("save the summary to summary.md")
