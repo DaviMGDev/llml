@@ -130,7 +130,10 @@ step-by-step:
 
 - [`skills/interpreter/`](skills/interpreter/) — the interpreter skill.
 
-Load it in an agent harness (e.g. [pi](https://github.com/earendil-works/pi-coding-agent)) and point it at a `.llml` file.
+The skill is **self-contained**: it bundles the full Language Reference, so it
+works in any project without needing this README present. Load it in an agent
+harness (e.g. [pi](https://github.com/earendil-works/pi-coding-agent)) and point
+it at a `.llml` file.
 
 ## Out of scope
 
