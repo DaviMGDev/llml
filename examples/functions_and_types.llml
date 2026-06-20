@@ -1,0 +1,15 @@
+# Functions, type annotations, and the ~= operator on numbers.
+# Demonstrates: def with annotations, return, number (int | float), ~=.
+
+def add(a: number, b: number) -> number:
+    return a + b
+
+def greet(name: str) -> str:
+    return "hello, ${name}"
+
+total = add(3, 4)
+print(total)                  # 7
+print(total ~= "natural number")   # true
+
+message = greet("world")
+print(message ~= "greeting")  # true

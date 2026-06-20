@@ -1,0 +1,7 @@
+# Summarize every history-related document in the current directory.
+# Demonstrates: for + bash(), inferred attributes (file.content, file.path),
+# the ~= semantic operator on file contents, and agent() side effects.
+
+for file in bash("ls"):
+    if file.content ~= "related to history":
+        agent("summarize ${file.path} and save it in a .md file")

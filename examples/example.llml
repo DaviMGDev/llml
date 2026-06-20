@@ -1,0 +1,31 @@
+# LLML is a pseudocode with Python-like syntax, interpreted by an AI agent.
+# See README.md for the full Language Reference.
+
+# --- Primitives & annotations ---
+x = 10
+s: str = "hi"
+y: float = 3.14
+n: number = 42          # number == int | float
+
+def add(a: number, b: number) -> number:
+    return a + b
+
+# --- Builtins ---
+agent("this is a prompt, not a literal string")          # dispatched to the agent
+agent("interpolate vars with ${x} and ${s}")             # ${} interpolation applies
+
+print("literal output, no semantic evaluation; ${s} still interpolates")
+
+# --- Semantic operator ~= ---
+print(x ~= number)              # true  — x is a number
+print(x ~= "natural number")    # true  — x is a natural number
+print(s ~= "greeting")          # true  — s is a greeting
+
+# --- Inference: attributes come from context, no schema needed ---
+for file in bash("ls"):
+    if file.content ~= "a document related to history":
+        agent("summarize ${file.path} and save it in a .md file")
+
+# --- agent() can return a value when bound ---
+result = agent("which file has more lines?")
+print(result)

@@ -1,0 +1,8 @@
+# Count files that are about AI.
+# Demonstrates: for + bash(), the `is <phrase>` form, counter, print.
+
+count = 0
+for file in bash("ls"):
+    if file is about AI:
+        count++
+print(count)
