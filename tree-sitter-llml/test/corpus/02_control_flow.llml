@@ -1,0 +1,38 @@
+// ── CONDITIONALS ──────────────────────────────────────────────────────────────
+
+if file_exists($project_root + "/package.json") {
+    npm install
+    npm run build
+} else {
+    print("no package.json found — skipping build")
+}
+
+if this.name ~= "web server" {
+    curl -f http://localhost:80
+} else if this.name ~= "database" {
+    pg_isready
+} else {
+    systemctl is-active $this.name
+}
+
+// ── when STATEMENT ────────────────────────────────────────────────────────────
+
+when $system_state ~= "healthy" {
+    df -h
+    uptime
+} else when $system_state ~= "degraded" {
+    investigate()
+} else when $system_state ~= "down" {
+    alert_oncall("system is down")
+    emergency_recovery()
+}
+
+// ── for LOOP ──────────────────────────────────────────────────────────────────
+
+for file in ls *.js {
+    npx eslint --fix $file
+}
+
+for service in config.services {
+    curl -f $config.health_endpoints[service]
+}
