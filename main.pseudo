@@ -1,0 +1,120 @@
+// this is a pseudocode language intended to be interpreted and even written by LLM's. it is not strict language, just a set of conventions to define better agent behaviour 
+
+// no functions here
+// text is a prompt
+hi, give me a poem // this is a prompt for the LLM to generate a poem 
+
+x = 10 
+
+how much is x? // this is a prompt for the LLM to answer the value of x
+
+and how much is x + 5? // this is a prompt for the LLM to answer the value of x + 5
+
+for file in ls -lahS:
+    move file to <category>/ 
+    example: mv file.jpg Pictures/ // this is a prompt for the LLM to move files to a specific category folder based on their type
+
+"objects" and "classes" are just json notation
+
+me = {
+    name: Davi,
+    age: 21,
+    job: Student
+}
+
+I'm an adult? // this is a prompt for the LLM to determine if the user is an adult based on their age 
+
+/*
+btw, this is a multi-line comment 
+comments are not intended to be seen by LLM's, they are removed before the prompt is sent to the LLM, so they are not part of the prompt.
+*/
+
+/*
+I think that this is all the structure that I need to define my DSL? I guess?
+basically we define vars with 
+var = value 
+
+for item in iterator/range/container:
+    do something with item 
+
+I forgot to mention control flow, but is the standard if/else statement
+if condition:
+    do something
+else if another condition:
+    do something else
+else:
+    do something else
+
+btw, we can have type annotations too, but they are not really "official". like:
+
+person: adult = {
+    name: John
+}
+
+or 
+
+person: engineer = {
+    name: john 
+}
+
+answer: correct answer = some value to a question
+
+btw, control flows can also be defined like this:
+
+condition? do something. not condition? do something else.
+
+that is also valid
+
+condition? 
+    do something.
+not condition? 
+    another condition?
+        do something else.
+
+[1, 2, 3, 4] is a list 
+
+btw we can name things in a different way than = 
+
+pi is 3.14 
+me as user 
+
+what is the value of pi? // this is a prompt for the LLM to answer the value of pi, it will probably not use the variable since it is a info very well know, but if it were other variable it would probably use it.
+
+btw, since this is a flexible language, we can accept embbedded formats like json, yaml, xml, md, etc. just make sure to specify the format. you can use the type annotation for that btw 
+
+data: yaml = 
+    name: John
+    age: 30
+    city: New York
+
+another data: toml = 
+    name = "John"
+    age = 30
+    city = "New York"
+
+other data: json = 
+    {
+        "name": "John",
+        "age": 30,
+        "city": "New York"
+    }
+
+
+I might add support to highlight syntax for editors later, but that is all that I will add for this language. it is not intended to be compiled, or something like that, so I will not make a lsp, nor a linter or type checker or anything too fancy. it is just a DSL to define prompts for LLM's, and to define some control flow and variables to make the prompts more dynamic.
+
+maybe I can add a formatter actually, and a preprocessor to remove comments and "compile" to markdown, but that is all 
+
+I said before that this language dont have functions, but why not?
+
+fn name(args: type): type {
+    do something
+}
+
+fn somebehaviour(parameters: text) {
+    based on parameters, I want you to 
+    do something.
+}
+*/
+
+// this is intended to be the pseudocode language flavor of my language family. I dont know what to call it yet, I will think more about it later
+// btw, I will probably need to make skills to LLM's interact better with this language, to write, review, understand and convert natural language to this language and vice versa. 

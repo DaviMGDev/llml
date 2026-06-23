@@ -1,0 +1,209 @@
+/*
+this is llm language(llml)
+a deterministic programming language that happens to be also an agent
+*/
+
+// this is a comment, above is a multi-line comment
+// this is a variable declaration
+x = 5 // type inference, x is a number
+y: number = 10 // explicit type declaration
+const pi = 3.14 // constant variable, cannot be reassigned
+
+/*
+primitive types:
+- number
+- text
+- boolean
+- any 
+- function
+
+data structures:
+- array: []type 
+- map: map[keytype]valuetype
+- class: class ClassName(BaseClass) { // class definition with inheritance demonstration
+        attribute: type = value // to declare an attribute with a default value 
+        () {} // constructor 
+        function method() {} // method
+    }
+
+btw, we can add rules to variables, like invariants
+
+name: text {
+    () {
+        if this == "invalid" {
+            throw "invalid name"
+        }
+    }
+}
+
+when we try to assign "invalid" to name, it will throw an error
+
+name = "invalid" // this will throw an error
+ 
+other example:
+num: number {
+    value = 10 // to initialize the variable with a value while declaring it with the rules
+    () {
+        if this < 0 {
+            throw "num must be positive"
+        }
+    }
+}
+
+invariants are accepted in classes.
+
+I might improve the syntax later, but I like it 
+
+control flow:
+if condition {
+    // code block
+} else if condition {
+    // code block
+} else {
+    // code block
+}
+
+match value {
+    case pattern1 {
+        // code block
+    }
+    case pattern2 {
+        // code block
+    }
+    default {
+        // code block
+    }
+}
+
+ternary operator:
+condition ? value_if_true : value_if_false
+
+loops:
+while condition {}
+
+for item in iterable {}
+
+for i in 0..10 {}
+
+for k, v in map {}
+
+
+btw, that is all the basic syntax, with the deterministic features. however, besides the invariants thing, our language is too raw. lets add some cool features:
+
+~= operator. this operator lets us check if something is approximately equal to something by semantics. it is optimized to not always call llm when uneeded though.
+examples:
+
+print("hello world" ~= "hello world") // true. and it did not called llm, because it is a simple string comparison
+print("hello world" ~= "hi world") // true. close enough, it called llm though.
+print("hello world" ~= "goodbye world") // false. not similar meaning, it called llm though.
+print("hello" ~= "greeting") // true. similar meaning, it called llm though.
+print("5" ~= number) // true. and it did not called llm, because 5 if the string can be converted to a number, it **is** a number., therefore it is approximately equal to number.
+print("5" ~= text) // true. and it did not called llm, because 5 is a string, therefore it is approximately equal to text.
+print("five" ~= number) // true. but the llm were needed here
+print({"name": "john", "age": 30} ~= "adult") // true. it called llm though, because it is a complex object, and it is approximately equal to adult.
+
+I think that you got the idea.
+
+that's not all though 
+
+what give llm's the ability to interact with the world is tool calling. we can define tools in two ways:
+btw, I see now that I forgot to mention how to define functions, so here it is:
+fn name(args: type): type {
+    // code block
+}
+
+fn fnwithclosure(args: type): fn(type): type {
+    // code block
+    return fn(args) // return a function
+}
+
+1. using a function as a tool 
+
+fn will_be_a_tool(args: type): type {
+    // code block
+}
+
+tool will_be_a_tool // btw, is recommended to document the tool, so that llm can understand it better
+
+you can also define a tool directly 
+tool tool_name(args: type): type {
+    // code block
+}
+
+all tools are visible to llm in our scope.
+
+but you probably are questioning, how we even call the llm itself?
+
+with the builtin function prompt(). I will show you an example using tools and this prompt together:
+
+tool get_weather(location: text): text {
+    // code block to get weather
+    return "sunny" // just a placeholder
+}
+
+response = prompt("what is the weather in new york?") // the llm will use the get_weather tool to get the weather in new york, and return the response
+
+btw, we have predefined tools like read, write, edit and bash
+
+the code is interpreted by both llm and the deterministic interpreter, but with what I showed you, we can have only one agent, right? what if we added an agent type for subagents systems?
+
+class SubAgent(Agent) {
+    system: text {
+            value = "you are a helpful and generalist subagent with the purpose of assisting the main agent in any given task"
+            () {
+                if this == "" {
+                    throw "system prompt cannot be empty"
+                }
+            }
+    }
+    tool calculate(expression: text): number {
+        // code block to calculate the expression
+        return 42 // just a placeholder
+    } 
+}
+
+tool invoke_subagent(agent: Agent, instruction: text): text {
+    return agent.prompt(instruction) // I might change slightly the syntax later because this process is kindof asynchronous. I can keep it like this for now because I cant think of anything better than this.
+}
+
+result = prompt("use a the generalist subagent to calculate 2 + 2") // the llm will use the subagent to calculate 2 + 2, and return the response
+
+hmmmm. this looks good for now, but... result is a text, sometimes I want to use like text, sometimes I want to use specific types and structures so I might need to somehow add support for that?
+
+lets look at my options to implement this:
+1. we can use our invariants feature like that?:
+response: number {
+    () {
+        value = prompt("do 2 + 2") 
+        if type(this) != number {
+            throw "response must be a number"
+        }
+    }
+}
+
+I mean, it will work without adding a new feature, but is too verbose
+
+2. we can make our interpreter handle the type checking for us and "force" the llm to return a specific type in the internal schema:
+result: number = prompt("do 2 + 2") // the llm will return a number, and if it does not, it will throw an error. for this works, the type annotation MUST BE PRESENT, otherwise it will just return a text as always. the problem of this approach is that while it might work well for primitive types, depending on the complexity of the type and llm's quality, it might not work for complex types and structures. this problem will need to be solved in the future somehow. maybe abstracting types at some level, or using a more robust type system, or even using a schema language like json schema or protobuf. but for now, this is a good approach to start.
+
+btw, both alternatives can actually be used together, most of the time only the second is enough. 
+
+basically the "llm" features of my language are:
+- prompt() function to call the llm
+- tool keyword to define tools
+- "~=" operator to check for approximate equality by semantics. not always call llm though.
+
+that's all?
+
+import "module" // to import a module 
+
+package package_name // to define a package, required to be able to be imported by other packages. works like in golang.
+
+"" and '' are the same 
+
+string interpolation with ${} 
+
+standard aritmetic operators and bitwise operators are supported. plus var++ and var--, and x**a.
+
+I'm forgetting anything?
+*/
