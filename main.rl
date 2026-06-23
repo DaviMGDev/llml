@@ -312,6 +312,15 @@ print("Odd block: 1")
 print("Even block: 2")
 print("Odd block: 3")
 
+// 8. Custom operators 
+// Aliases can also define custom operators for DSLs.
+alias `~=`(a, b) {
+    a == b 
+}
+
+// Usage:
+print(5 ~= 5) // Expands to: print(5 == 5) => true
+
 // ==========================================
 // 07. ERROR HANDLING & TYPE CHECKING
 // ==========================================
@@ -412,3 +421,456 @@ public class PublicClass {
   - private: Accessible only within the current scope (class, function, or package).
   - Default visibility depends on the scope, but should be intuitive (e.g., private by default in classes).
 */
+
+// ==========================================
+// 10. ASYNC & CONCURRENCY
+// ==========================================
+
+/*
+  Unified Model:
+  - Channels are the primitive for communication.
+  - `await` is syntactic sugar for `<-` (left-to-right readability).
+  - `async function` is sugar for a channel-returning function with a spawned body.
+  - `when` works with channels natively (reactive + async are unified).
+  - NO function coloring: any function can call any other function.
+*/
+
+// ======== 10a. CHANNELS (Primitive) ========
+
+ch: channel[int] = channel[int](5)    // buffered channel, capacity 5
+ch: channel[int] = channel[int]()     // unbuffered channel
+
+ch <- value                            // send (blocks if full / no receiver)
+v = <- ch                              // receive (blocks if empty / closed)
+
+// Non-blocking receive with default
+v = <- ch or default_value
+
+// Channel state queries (using existing `can` pattern)
+if (can <- ch) {
+    print("Channel is open and has a value")
+} else {
+    print("Channel is closed or empty")
+}
+
+if (ch closed) {
+    print("Channel is definitely closed")
+}
+
+// Iterating over a channel (auto-closes when channel is closed)
+for value in <- ch {
+    print("got: ${value}")
+}
+
+// ======== 10b. CONCURRENCY (Lightweight Tasks) ========
+
+// `run` spawns a lightweight concurrent task (like Go's `go`)
+run function() {
+    ch <- 42
+}
+
+// Block-syntax shortcut for lightweight cases
+run {
+    ch <- 42
+}
+
+// ======== 10c. REACTIVE INTEGRATION with `when` ========
+
+// `when` on a channel reacts to every new message — no RxJS needed
+when ch {
+    print("received: ${new(ch)}")
+}
+
+// React to channel closure
+when ch closed {
+    print("channel closed, no more messages")
+}
+
+// React to an async function call directly
+when fetch_data("url") {
+    update_ui(new(ch))
+}
+
+// ======== 10d. SELECT (Multiplexing Channels) ========
+
+select {
+    case v <- ch1 {
+        print("got ${v} from ch1")
+    }
+    case v <- ch2 {
+        print("got ${v} from ch2")
+    }
+    case <- time.after(1s) {
+        print("timeout — no channel ready within 1 second")
+    }
+    default {
+        print("no channel ready right now")
+    }
+}
+
+// ======== 10e. AWAIT (Syntactic Sugar for `<-`) ========
+
+/*
+  `await` is NOT a special keyword that requires special contexts.
+  It is simply `<-` written left-to-right for readability:
+
+    await expr   ≡   <- expr
+
+  This is especially helpful for deeply nested calls:
+*/
+
+// Right-to-left (hard to read):
+data = <- parse(<- fetch("url"))
+
+// Left-to-right with await (clearer chain):
+data = await parse(await fetch("url"))
+
+// `await` can be used ANYWHERE — no async context required
+result = await compute_something()
+
+// ======== 10f. ASYNC FUNCTION (Syntactic Sugar) ========
+
+/*
+  An `async function` is sugar that tells the compiler:
+    1. Return type becomes channel<T> automatically.
+    2. The function body runs in a spawned task.
+*/
+
+async function fetch(url: string): string {
+    response = http.get(url)           // blocks THIS task, not the caller
+    return response.body               // sends result to channel
+}
+
+/* Desugars to exactly this:
+
+function fetch(url: string): channel[string] {
+    ch: channel[string] = channel[string](1)
+    run {
+        response = http.get(url)
+        ch <- response.body
+    }
+    return ch
+}
+*/
+
+// Contracts work naturally with async functions
+async function divide(a: int, b: int): int {
+    requires { b != 0 }
+    ensure  { result == a / b }
+    return a / b
+}
+
+// ======== 10g. NO FUNCTION COLORING ========
+
+/*
+  Because `async function` is just sugar and `await` is just sugar,
+  there is NO colored-function problem. You can call any function
+  from anywhere in any style:
+*/
+
+// Block and wait
+result = await fetch("url")
+
+// Get the channel, process later
+future = fetch("url")
+
+// React to it reactively
+when fetch("url") {
+    update_ui(new(ch))
+}
+
+// Process in another task
+run {
+    result = <- fetch("url")
+    print(result)
+}
+
+// Pass the channel around — channels are just values
+ch = fetch("url")
+
+// Pattern matching on channel receive
+match <- ch {
+    case Ok(val) { print("got ${val}") }
+    case Err(e)  { print("error: ${e.message}") }
+    default      { print("channel closed") }
+}
+
+// ==========================================
+// 11. GENERICS (Parametric Polymorphism)
+// ==========================================
+
+/*
+  Generics use square brackets [T], consistent with []type for arrays.
+  Constraints reuse the contract system (requires / ensures).
+  The `can` keyword works at compile time for type introspection.
+*/
+
+// ======== 11a. GENERIC FUNCTIONS ========
+
+function identity[T](value: T): T {
+    return value
+}
+
+// Multiple type parameters
+function pair[A, B](a: A, b: B): (A, B) {
+    return (a, b)
+}
+
+// ======== 11b. GENERIC CLASSES ========
+
+class Box[T] {
+    value: T
+
+    init(value: T) {
+        this.value = value
+    }
+
+    function get(): T {
+        return this.value
+    }
+}
+
+// Usage with explicit type
+b: Box[int] = Box[int](42)
+
+// Usage with type inference (no annotation needed)
+b = Box("hello")          // Box[string] inferred
+b = Box(42)                // Box[int] inferred
+
+// ======== 11c. GENERIC CONSTRAINTS (Design by Contract) ========
+
+// Contract-style constraint reuses `requires` — no new keyword
+function add[T](a: T, b: T): T 
+    requires { T is number }
+{
+    return a + b
+}
+
+// Shorthand for common constraints
+function max[T: Comparable](a: T, b: T): T {
+    if a > b { return a }
+    return b
+}
+
+// Multiple constraints
+function serialize[T: Serializable & Comparable](items: []T): string {
+    // T must be both serializable and comparable
+    result = ""
+    for item in sort(items) {
+        result += item.to_json()
+    }
+    return result
+}
+
+// Constraint with postcondition
+function first[T](items: []T): T 
+    requires { items.len() > 0 }
+{
+    return items[0]
+}
+
+// ======== 11d. GENERIC COLLECTIONS ========
+
+class Stack[T] {
+    items: []T = []
+
+    function push(item: T) {
+        items.append(item)
+    }
+
+    function pop(): T 
+        requires { items.len() > 0 }
+    {
+        return items.pop()
+    }
+
+    function peek(): T 
+        requires { items.len() > 0 }
+    {
+        return items[-1]
+    }
+
+    function is_empty(): bool {
+        return items.len() == 0
+    }
+}
+
+class Map[K, V] {
+    entries: [(K, V)] = []
+
+    function set(key: K, value: V) {
+        // Upsert logic
+        for i, (k, _) in entries {
+            if k == key {
+                entries[i] = (key, value)
+                return
+            }
+        }
+        entries.append((key, value))
+    }
+
+    function get(key: K): Optional[V] {
+        for k, v in entries {
+            if k == key {
+                return Some(v)
+            }
+        }
+        return none
+    }
+}
+
+// ======== 11e. GENERIC HIGHER-ORDER FUNCTIONS ========
+
+function map[T, U](items: []T, f: function(T): U): []U {
+    result: []U = []
+    for item in items {
+        result.append(f(item))
+    }
+    return result
+}
+
+function filter[T](items: []T, pred: function(T): bool): []T {
+    result: []T = []
+    for item in items {
+        if pred(item) {
+            result.append(item)
+        }
+    }
+    return result
+}
+
+function reduce[T, U](items: []T, init: U, f: function(U, T): U): U {
+    acc = init
+    for item in items {
+        acc = f(acc, item)
+    }
+    return acc
+}
+
+// Usage:
+squared = map([1, 2, 3, 4], function(x) { x * x })
+// => [1, 4, 9, 16]
+
+evens = filter([1, 2, 3, 4], function(x) { x % 2 == 0 })
+// => [2, 4]
+
+sum = reduce([1, 2, 3, 4], 0, function(acc, x) { acc + x })
+// => 10
+
+// ======== 11f. COMPILE-TIME TYPE INTROSPECTION ========
+
+// The `can` keyword extends naturally to compile-time type queries
+
+function type_name[T](): string {
+    if (can T is int)     return "integer"
+    if (can T is string)  return "string"
+    if (can T is number)  return "numeric"
+    if (can T is bool)    return "boolean"
+    return "unknown"
+}
+
+// Structural checks at compile time
+if (can T is Iterable) {
+    // T has an iterator — we can loop over it
+}
+
+if (can T is Comparable) {
+    // T supports comparison operators
+}
+
+// ======== 11g. GENERIC TYPE ALIASES ========
+
+// Result[T] — no new syntax needed, works with existing union types
+type Result[T] = Ok(T) | Err(error)
+
+function divide(a: int, b: int): Result[int] {
+    if b == 0 {
+        return Err("division by zero")
+    }
+    return Ok(a / b)
+}
+
+// Pattern match on Result
+match divide(10, 2) {
+    case Ok(val) { print("result: ${val}") }
+    case Err(e)  { print("failed: ${e.message}") }
+}
+
+// Optional[T]
+type Optional[T] = Some(T) | none
+
+// Recursive tree type
+type Tree[T] = Node(T, []Tree[T]) | Leaf(T)
+
+// ======== 11h. GENERICS + INVARIANTS ========
+
+// Type invariants compose with generics
+type positive(T) {
+    invariants {
+        this > 0
+    }
+}
+
+p: positive(int) = 5        // OK
+// p: positive(int) = -1    // Compile-time error: invariant violation
+
+// Class invariants with generic types
+class Container[T] {
+    value: T
+
+    invariants {
+        can value is T       // value always matches the type parameter
+    }
+
+    init(value: T) {
+        this.value = value
+    }
+
+    function set(val: T) {
+        requires {
+            can val is T
+        }
+        this.value = val
+    }
+
+    function get(): T {
+        return this.value
+    }
+}
+
+// ======== 11i. INTEROPERABILITY PREVIEWS ========
+
+// Generics + Async
+async function fetch_json[T](url: string): T {
+    requires { T is Serializable }
+    ensure  { can result is T }
+
+    raw = await http.get(url)
+    return parse_json[T](raw)
+}
+
+// Generics + Channels
+function broadcast[T](input: channel[T], n: int): []channel[T] {
+    outputs: []channel[T] = []
+    for i in 0..n {
+        outputs.append(channel[T](10))
+    }
+
+    run {
+        for value in <- input {
+            for out in outputs {
+                out <- value
+            }
+        }
+        for out in outputs {
+            out <- close       // close all outputs when input is exhausted
+        }
+    }
+
+    return outputs
+}
+
+// Generics + Reactive
+when broadcast(data_stream, 3) {
+    print("broadcast channel has a new value: ${new(ch)}")
+}
