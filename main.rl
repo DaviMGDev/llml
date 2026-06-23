@@ -1,72 +1,96 @@
-// this is a comment
+// ==========================================
+// 01. BASICS: COMMENTS, VARIABLES & TYPES
+// ==========================================
+
+// Single-line comment
+
 /*
-this is a multiline comment 
+  Multi-line comment
 */
 
-// how to declare and initialize a var:
-x: int = 5 // type annotation is optional, but recommended for clarity
+// Variable declaration
+// Type annotation is optional, but recommended for clarity
+x: int = 5
 y = 10.12
 
-// consts:
+// Constants
 const pi: float = 3.14159
 
-/* primitive types:
-int, float, number(number is int | float),
-string, bool, byte,
-any (generic type), 
-void (no return value)
-error (used for error handling)
-union types: type1 | type2 | ... | typeN (any is a union type of all types basically)
+/*
+  Primitive Types:
+  - int, float, number (int | float), string, bool, byte
+  - any (generic type, union of all types)
+  - void (no return value)
+  - error (used for error handling)
+
+  Union Types: type1 | type2 | ... | typeN 
 */
 
-/* data structures:
-array: [size]type
-map: map[key_type]value_type
-set: set[type]
-tuple: (type1, type2, ...)
+// ==========================================
+// 02. DATA STRUCTURES
+// ==========================================
+
+/*
+  - Dynamic Array: []type 
+  - Fixed Array: [size]type
+  - Map: map[key_type]value_type
+  - Set: set[type]
+  - Tuple: (type1, type2, ...)
 */
 
-// class:
-class Class(BaseClass) { // optional inheritance
-    attr1: type1 = value1 // attribute with default value.
-    attr2: type2 // attribute without default value.
-    (a1, a2) {
+// ==========================================
+// 03. OBJECT-ORIENTED PROGRAMMING (OOP)
+// ==========================================
+
+class Class(BaseClass) { // Optional inheritance
+
+    attr1: type1 = value1 // Attribute with default value
+    attr2: type2          // Attribute without default value
+
+    // Constructor
+    init(a1, a2) {
         this.attr1 = a1
         this.attr2 = a2
     }
+
     function method1() {
         // method body
     }
 }
 
-// invariants system. must be used when defining a type, or class.
+// ==========================================
+// 04. DESIGN BY CONTRACT (Invariants & Requirements)
+// ==========================================
+
+// Type Invariants
 type natural(int) {
     invariants {
         this >= 0
     }
 }
 
-n: natural = -1 // this will throw an error because -1 is not a natural number
-// this might become a problem, so we will add a new keyword to handle this type of situation.
-// "can" keyword will be used to indicate that a variable can do something of not
+// The `can` keyword checks validity (both invariants and types).
+n: natural = 5 
+print(can n = -1) // Prints false (violates invariant)
 
-print(can n = -1) // this will print false because n cannot be -1
 if (can n = -1) {
     print("n can be -1")
 } else {
     print("n cannot be -1")
 }
 
-// an example with a class:
+// Class Invariants
 class Person {
-    name: string 
-    age: natural 
-    (name: string, age: natural) {
+    name: string
+    age: natural
+
+    init(name: string, age: natural) {
         this.name = name
         this.age = age
     }
+
     function greet() {
-        print("Hello, my name is " + this.name + " and I am " + this.age + " years old.")
+        print("Hello, my name is ${this.name} and I am ${this.age} years old.")
     }
 }
 
@@ -76,30 +100,32 @@ class Adult(Person) {
     }
 }
 
-someone: Adult = Adult("John", 17) // this will throw an error because 17 is not a valid age for an adult 
-print(can Adult("John", 17)) // this will print false because someone cannot be an adult with age 17
+print(can Adult("John", 17)) // Prints false (violates Adult invariant)
 
-// requirements and guarantees:
+// Method Contracts (Preconditions and Postconditions)
 class Container {
-    value: int 
+    value: int
+
     invariants {
         this.value >= 0
     }
-    (value: int) {
-        this.value = value 
+
+    init(value: int) {
+        this.value = value
     }
-    fnction increment(value: int) {
+
+    function increment(val: int) {
         requires {
-            value > 0
+            val > 0
         }
         ensure {
-            this.value + value > old(this.value)
+            this.value == old(this.value) + val 
         }
-        this.value += value 
+        this.value += val
     }
 }
 
-// can be used in functions as well:
+// Function Contracts
 function add(a: number, b: number): number {
     requires {
         a >= 0
@@ -107,19 +133,22 @@ function add(a: number, b: number): number {
     }
     ensure {
         result >= a
-        result >= b 
+        result >= b
     }
-    return a + b 
+    return a + b
 }
 
-// disclaimer: while this language supports this kind of programming, the developer still can write without using these features, or using only when really needed. The language is designed to be flexible and not force the developer to use these features if they don't want to.
+// ==========================================
+// 05. REACTIVE & ASPECT-ORIENTED PROGRAMMING
+// ==========================================
 
-// btw, something cool of this language too is reactive programming with the keywords "when/before/after".
-/* reactive programming:
-when condition {}
-when statechange {}
+/*
+  Triggers: when, before, after
+  Rule: Observers cannot change the state they are observing.
+*/
 
 a = 0
+
 when a {
     print("a changed to ${new(a)}")
 }
@@ -128,84 +157,258 @@ when a > 5 {
     print("a is greater than 5 now")
 }
 
-also works with functions:
-function add(a, b) {
-    return a + b 
+function add_nums(a, b) {
+    return a + b
 }
 
-when add(2, 3) {
-    print("add was called with 2 and 3")
+when add_nums(2, 3) > 5 {
+    print("add_nums returned a value greater than 5")
 }
 
-when add(a, b) {
-    print("add was called with ${a} and ${b}")
-}
-
-when add(2, 3) > 5 {
-    print("add returned a value greater than 5")
-}
-
-before/after can be used to run code before or after something happens 
-
-before a {
-    print("something is accessing a")
-}
-
-before add(2, 3) {
-    print("add is about to be called with 2 and 3")
-}
-
-before add(a, b) {
-    print("add is about to be called with ${a} and ${b}")
-}
-
-after a {
-    print("something just accessed a")
-}
-
-after add(2, 3) {
-    print("add was just called with 2 and 3")
-}
-
-after add(a, b) {
-    print("add was just called with ${a} and ${b}")
-}
-
-with classes, you can use before/after to run code before or after a method is called:
-class Person {
+// AOP: Before and After advice
+class PersonAOP {
     name: string
-    (name: string) {
+
+    init(name: string) { 
         this.name = name
     }
+
     function greet() {
-        print("Hello, my name is " + this.name)
+        print("Hello, my name is ${this.name}")
     }
+
     before greet() {
         print("greet is about to be called")
     }
+
     after greet() {
         print("greet was just called")
     }
 }
 
-important rule!!!: when/before/after can not change the state, it can only read the state, it can change others states, but not the same state what is being observed. this is to avoid infinite loops and other problems.
+// ==========================================
+// 06. COMPILE-TIME MACROS (Aliases & DSLs)
+// ==========================================
 
-other cool thing here is "alias" keyword which can be used to create an alias for **anything** 
+/*
+  The `alias` keyword creates compile-time macros/syntactic sugar.
+  They are processed before runtime/compilation.
+  
+  Syntax Rules:
+  - Regular parameters use parentheses: (param1, param2)
+  - Trailing block parameters use brackets: [block1, block2]
+  - Compile-time directives inside macros use the `@` symbol: @if, @for
+*/
 
+// 1. Simple Keyword Aliases
 alias method {function}
 
-method methodName() {
-    // body 
+method myMethod() {
+    // body
 }
 
-// alias can accept parameters too 
-
-alias method(name, params) {function name(...params)}
-
-method(greet, (greeting, name)) {
-    return "${greeting}, my name is ${name}!"
+// 2. Macros with parameters and a single trailing block
+// The [block] syntax tells the compiler that the last argument is a code block.
+alias fn(params)[block] {
+    function(params) {
+        block
+    }
 }
 
-// alias are not a runtime/compilation feature, it is a preprocessor feature, like macros in C/C++
+// Usage:
+fn(x, y) {
+    print("x: ${x}, y: ${y}")
+}
+/* Expands to: */
+function(x, y) {
+    print("x: ${x}, y: ${y}")
+}
 
+// 3. Compile-time Directives (@if, @for)
+// These run during macro expansion, not at runtime.
+alias repeat(n)[block] {
+    @for i in 0..n {
+        block
+    }
+}
+
+// Usage:
+repeat(3) {
+    print("This will print 3 times")
+}
+/* Expands to: */
+print("This will print 3 times")
+print("This will print 3 times")
+print("This will print 3 times")
+
+// 4. Aliasing Macros (Macros can use other macros)
+alias repeat_twice[block] {
+    repeat(2) {
+        block
+    }
+}
+
+repeat_twice {
+    print("This will print 2 times")
+}
+
+// 5. Conditional Compilation
+// Top-level or macro-level conditional compilation using @if/@else
+@if DEBUG {
+    print("Debug mode is ON")
+} @else {
+    print("Debug mode is OFF")
+}
+
+// Inside a macro:
+alias gender(person) {
+    @if person == "male" {
+        "he"
+    } @else {
+        "she"
+    }
+}
+
+print(gender("male")) // Expands to: print("he")
+
+// 6. Advanced Code Generation
+// Macros can generate dynamic identifiers using string interpolation.
+alias batch_fn(n)[block] {
+    @for i in 0..n {
+        function fn_${i}() {
+            block
+        }
+    }
+}
+
+batch_fn(3) {
+    print("This is function ${i}")
+}
+
+fn_2() // Will print "This is function 2"
+
+// 7. Multiple Trailing Blocks
+// Macros can accept more than one block parameter, allowing for complex DSLs.
+alias multiblock(n)[block1, block2] {
+    @for i in 0..n {
+        @if i % 2 == 0 {
+            block1
+        } @else {
+            block2
+        }
+    }
+}
+
+// Usage:
+multiblock(4) {
+    print("Even block: ${i}")
+} {
+    print("Odd block: ${i}")
+}
+
+/* Expands to: */
+print("Even block: 0")
+print("Odd block: 1")
+print("Even block: 2")
+print("Odd block: 3")
+
+// ==========================================
+// 07. ERROR HANDLING & TYPE CHECKING
+// ==========================================
+
+/*
+  Core Concept: Every type is technically also an error type.
+  Operations that fail return an `error` state instead of crashing.
+*/
+
+z: int = 5
+
+// Type checking using the `can` keyword
+if (can z = "string") {
+    print("z can be a string")
+} else {
+    print("z cannot be a string") // This will print
+}
+
+// Safe error checking on operations
+if typeof(z / 0) == error {
+    print((z / 0).message) // prints "division by zero"
+}
+
+// If an invalid assignment occurs at runtime, it becomes an error state
+z = "hello" // z is now in an error state
+print(z.message) // prints "type error: expected int but got string"
+
+// ==========================================
+// 08. CONTROL FLOW
+// ==========================================
+
+// For loops
+for i in iterable {
+    // loop body
+}
+
+for i in 0..10 { // Range-based loop (Note: define if 10 is inclusive or exclusive!)
+    // loop body
+}
+
+for key, value in map {
+    // loop body
+}
+
+for (i = 0; i < 10; i++) { // C-style loop
+    // loop body
+}
+
+// While loop
+while condition {
+    // loop body
+}
+
+// Pattern Matching
+match value {
+    case pattern1 {
+        // handle pattern1
+    }
+    case Ok(val) { // Variable binding example
+        print("Success: ${val}")
+    }
+    case Err(e) {
+        print("Failed: ${e.message}")
+    }
+    default {
+        // handle default case
+    }
+}
+
+// ==========================================
+// 09. MODULES & VISIBILITY
+// ==========================================
+
+package mypackage 
+
+/*
+  Files with the same package name are part of the same module.
+  They can access each other's private members (Go-style).
+*/
+
+import module_name
+
+public class PublicClass {
+    private secret: string
+    
+    init() {
+        this.secret = "hidden"
+    }
+    
+    public function getSecret(): string {
+        return this.secret
+    }
+}
+
+/*
+  Visibility rules:
+  - public: Accessible anywhere.
+  - private: Accessible only within the current scope (class, function, or package).
+  - Default visibility depends on the scope, but should be intuitive (e.g., private by default in classes).
 */
