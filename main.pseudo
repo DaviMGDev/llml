@@ -32,7 +32,7 @@ comments are not intended to be seen by LLM's, they are removed before the promp
 /*
 I think that this is all the structure that I need to define my DSL? I guess?
 basically we define vars with 
-var = value 
+variable = value 
 
 for item in iterator/range/container:
     do something with item 
@@ -57,7 +57,7 @@ person: engineer = {
     name: john 
 }
 
-answer: correct answer = some value to a question
+answer: correct = some value to a question
 
 btw, control flows can also be defined like this:
 
