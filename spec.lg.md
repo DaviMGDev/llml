@@ -299,6 +299,17 @@ adder := function(a, b: integer): integer {
 }
 ```
 
+Pure functions:
+
+```txt
+pure function square(x: int): int {
+    return x * x
+}
+```
+
+A `pure` function guarantees no side effects, no IO, and no mutation of outside state.
+It may only call other pure functions. Non-pure functions may call pure functions freely.
+
 ---
 
 # 9. Visibility
@@ -412,7 +423,18 @@ class ConsolePrinter {
         print("hello")
     }
 }
+
 ```
+
+Interface methods may be marked `pure`:
+
+```txt
+interface Hashable {
+    pure function hash(): int
+}
+```
+
+All implementations of a `pure` interface method must also satisfy the purity guarantees.
 
 ---
 
@@ -709,6 +731,8 @@ The runtime may execute many tasks on a smaller number of operating system threa
 
 This behavior is similar to goroutines.
 
+Channel operations and `run` are inherently impure — they may not appear inside `pure` functions or contract bodies.
+
 ---
 
 # 20. Events
@@ -740,6 +764,8 @@ on UserCreated := event {
 ```
 
 Events are implemented internally using channels and tasks.
+
+Emitting and subscribing to events are inherently impure — they may not appear inside `pure` functions or contract bodies.
 
 ---
 
@@ -776,6 +802,8 @@ on state(counter) := value {
 ```
 
 This is a compile-time error.
+
+Reactive state handlers are inherently impure — they may not be marked `pure`, though they may call pure functions internally.
 
 ---
 
@@ -846,6 +874,8 @@ function hello() {
     print("hello")
 }
 ```
+
+A decorator may itself be `pure` if it does not introduce side effects. A `pure` function may only use a decorator that is itself `pure`.
 
 ---
 
@@ -1001,6 +1031,14 @@ print(10 ~= 10.1) // true, I guess?
 
 ---
 
+## Purity and Macros
+
+Macro bodies execute at compile time and are exempt from purity restrictions — they may perform IO, mutate state, or call impure functions during compilation.
+
+Macro expansions that generate `pure function` declarations must respect purity guarantees in the generated code. The compiler validates the expanded code as if it were written directly.
+
+---
+
 # 25. Design By Contract
 
 The language provides four contract features:
@@ -1105,7 +1143,9 @@ require isPrime(x)
 
 The compiler attempts to reject obviously non-terminating contract evaluation.
 
-Preventing side effects and expensive computations inside contracts is the responsibility of the developer.
+All contract bodies (`require`, `ensure`, `invariant`, and `can`) are **pure contexts**. Only pure functions and implicitly pure expressions are permitted inside contracts. The compiler rejects any impure call inside a contract body.
+
+Side effects are eliminated by the pure context — impure calls are rejected at compile time. However, expensive or non-terminating pure computations inside contracts remain the responsibility of the developer.
 
 ---
 
@@ -1144,6 +1184,77 @@ false
 * ensure conditions
 
 It does not execute normal program behavior outside contract evaluation.
+
+---
+
+# 26. Pure Functions
+
+A pure function is a function that has no side effects and whose return value depends only on its arguments.
+
+## Declaration
+
+```txt
+pure function square(x: int): int {
+    return x * x
+}
+```
+
+## Guarantees
+
+A `pure` function guarantees:
+
+* No mutation of state outside its local scope
+* No IO (print, file, network, etc.)
+* No channel operations, task spawning, or event emission
+* No interaction with reactive state
+* It may only call other `pure` functions
+* Its return value depends solely on its arguments (referential transparency)
+
+The compiler enforces these guarantees at compile time. Violations are rejected.
+
+## Implicit Purity
+
+The following are implicitly pure and may appear in any pure context:
+
+* Literals, variable reads, arithmetic, boolean, and comparison operations
+* Calls to `pure` functions
+* Value type (struct) construction
+* `typeof()` — runtime type inspection
+* Enum member access and comparison
+
+## Purity and Contracts
+
+Contract bodies (`require`, `ensure`, `invariant`, `can`) are **pure contexts**.
+
+Only pure functions and implicitly pure expressions are permitted inside contracts.
+
+The compiler rejects any impure call inside a contract body.
+
+## Purity and Interfaces
+
+Interface methods may be declared `pure`:
+
+```txt
+interface Hashable {
+    pure function hash(): int
+}
+```
+
+Every implementation of a `pure` interface method must also satisfy the purity guarantees.
+
+## Purity and Decorators
+
+A decorator may be `pure` if it introduces no side effects. A `pure` function may only be decorated with a `pure` decorator.
+
+## Purity and Macros
+
+Macro bodies execute during compilation and are exempt from purity restrictions — they may perform IO or mutate state during compilation.
+
+Macro expansions that generate `pure function` declarations must respect purity guarantees in the generated code. The compiler validates the expanded code as if it were written directly.
+
+## Default Rule
+
+All functions are impure by default. Only functions explicitly marked `pure`, or implicitly pure expressions, carry purity guarantees.
 
 ---
 
