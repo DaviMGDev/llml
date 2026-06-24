@@ -941,6 +941,64 @@ Macros are not required to generate valid code.
 
 Validation occurs after macro expansion.
 
+--- 
+
+## Macro new operators:
+
+```
+macro `op`(a, b) {
+    a + b 
+}
+
+// whenever we type:
+//<something> op <otherthing> it will be actually <something> + <otherthing>
+// since it is basically text replacement, this is valid:
+macro `~=`(x, y) {
+    x == y // an example 
+}
+
+// with interfaces:
+interface Comparable[T] {
+    equals(other: T): boolean 
+}
+macro `==`(a, b) {
+
+}
+// nop, gonna need a better system for custom operators 
+operator[op](a, b: type) {
+} 
+
+operator[~=](a: integer, b: float): boolean {
+    return a == integer(b)
+}
+
+// operator[<existent operator>](a, b: <primitive types>): <type> {
+    // this is not alowed!!!!
+// }
+/*
+if you are using a existent operator:
+    if types are equals:
+        not allowed 
+    else:
+        allowed 
+else:
+    allowed 
+
+conditional operators must return boolean always
+custom operators can return custom types 
+operator[·](void, b: type): type {
+    return *b  
+}
+
+x: ·integer = &(integer(10))
+*/
+
+print(10 ~= 10.1) // true, I guess?
+// ?
+// okay, I really need to think more about how I would implement that.
+// THIS IS NOT OPTIONAL FEATURE. IT IS A MUST!
+```
+
 ---
 
 # 25. Design By Contract
