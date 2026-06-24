@@ -971,63 +971,6 @@ Macros are not required to generate valid code.
 
 Validation occurs after macro expansion.
 
---- 
-
-## Macro new operators:
-
-```
-macro `op`(a, b) {
-    a + b 
-}
-
-// whenever we type:
-//<something> op <otherthing> it will be actually <something> + <otherthing>
-// since it is basically text replacement, this is valid:
-macro `~=`(x, y) {
-    x == y // an example 
-}
-
-// with interfaces:
-interface Comparable[T] {
-    equals(other: T): boolean 
-}
-macro `==`(a, b) {
-
-}
-// nop, gonna need a better system for custom operators 
-operator[op](a, b: type) {
-} 
-
-operator[~=](a: integer, b: float): boolean {
-    return a == integer(b)
-}
-
-// operator[<existent operator>](a, b: <primitive types>): <type> {
-    // this is not alowed!!!!
-// }
-/*
-if you are using a existent operator:
-    if types are equals:
-        not allowed 
-    else:
-        allowed 
-else:
-    allowed 
-
-conditional operators must return boolean always
-custom operators can return custom types 
-operator[·](void, b: type): type {
-    return *b  
-}
-
-x: ·integer = &(integer(10))
-*/
-
-print(10 ~= 10.1) // true, I guess?
-// ?
-// okay, I really need to think more about how I would implement that.
-// THIS IS NOT OPTIONAL FEATURE. IT IS A MUST!
-```
 
 ---
 
@@ -1036,6 +979,139 @@ print(10 ~= 10.1) // true, I guess?
 Macro bodies execute at compile time and are exempt from purity restrictions — they may perform IO, mutate state, or call impure functions during compilation.
 
 Macro expansions that generate `pure function` declarations must respect purity guarantees in the generated code. The compiler validates the expanded code as if it were written directly.
+
+---
+
+## Operators
+
+Operators are functions with symbolic names that support infix, prefix, and postfix call syntax.
+
+### Declaration
+
+Infix operator (default):
+
+```txt
+operator `~=` (a: integer, b: float): boolean {
+    return a == integer(b)
+}
+```
+
+Prefix operator:
+
+```txt
+prefix operator `√` (x: float): float {
+    return sqrt(x)
+}
+```
+
+Postfix operator:
+
+```txt
+postfix operator `++` (x: *int): int {
+    let val = *x
+    *x = val + 1
+    return val
+}
+```
+
+### Operator Symbols
+
+Operator symbols consist of one or more characters from:
+
+The following are reserved and cannot be used as operator names:
+`.` (member access), `(` `)` (call), `[` `]` (subscript), `,` `;` `:` (punctuation).
+
+### Precedence and Associativity
+
+Built-in operators have fixed precedence levels. Custom operators may declare precedence and associativity:
+
+```txt
+operator `+++` (a, b: int): int precedence 6 associativity left {
+    return a + b + 1
+}
+```
+
+Default precedence: 5 (additive). Default associativity: left.
+
+Precedence levels:
+
+| Level | Category | Examples |
+|-------|----------|---------|
+| 0 | Assignment | `=`, `:=`, `+=` |
+| 1 | Logical OR | `\|\|` |
+| 2 | Logical AND | `&&` |
+| 3 | Comparison | `==`, `!=`, `<`, `>`, `<=`, `>=` |
+| 4 | Range | `..` |
+| 5 | Additive | `+`, `-` |
+| 6 | Multiplicative | `*`, `/`, `%` |
+| 7 | Unary (prefix) | `-`, `!`, `&`, `*` |
+| 8 | Exponentiation | `^` |
+| 9 | Postfix | `++`, `--` |
+| 10 | Member access | `.`, `()` |
+
+### Overloading Rules
+
+1. **New symbol** — Always allowed.
+2. **Existing symbol, at least one user-defined type** — Allowed.
+3. **Existing symbol, all built-in types, same parameter combination** — NOT allowed.
+4. **Existing symbol, all built-in types, different combination** — Allowed.
+5. **Comparison operators** (`==`, `!=`, `<`, `>`, `<=`, `>=`) must return `boolean`.
+6. A symbol cannot be declared as both prefix and infix.
+7. An operator may be declared `pure`; it follows the same restrictions as any `pure` function.
+
+Example of overloading `+` for a user type:
+
+```txt
+operator `+` (p: Point, v: Vector): Point {
+    return Point { x: p.x + v.dx, y: p.y + v.dy }
+}
+```
+
+### Operators in Interfaces
+
+Operators may appear in interface declarations:
+
+```txt
+interface Addable[T] {
+    operator `+` (a, b: T): T
+}
+```
+
+Generic constraint:
+
+```txt
+function sum[T: Addable](values: []T): T {
+    // `+` is available on T
+}
+```
+
+### Resolution
+
+Operator resolution follows the same rules as function overloading: exact match preferred, then implicit conversions, ambiguity is a compile-time error. Resolution occurs at compile time.
+
+### Desugaring
+
+An operator call is syntactic sugar for a function call:
+
+```
+a `~=` b  →  operator`~=`(a, b)
+√x        →  prefix operator`√`(x)
+x++       →  postfix operator`++`(x)
+```
+
+Operators may also be called using function syntax:
+
+```txt
+operator`+`(a, b)
+```
+
+### Visibility
+
+Operators follow the same visibility rules as functions. Private by default:
+
+```txt
+public operator `+++` (a, b: int): int
+```
 
 ---
 
