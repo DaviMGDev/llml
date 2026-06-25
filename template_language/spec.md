@@ -312,14 +312,14 @@ Templates can be composed by importing other template files. Imports are resolve
 Syntax:
 
 ```txt
-.import "path/to/file.tmp"
+.import "path/to/file.tmpl"
 ```
 
 Example:
 
 ```txt
-.import "./header.tmp"
-.import "https://example.com/shared/footer.tmp"
+.import "./header.tmpl"
+.import "https://example.com/shared/footer.tmpl"
 ```
 
 * Local paths are resolved relative to the current file or a configured base directory.
@@ -344,11 +344,11 @@ While the language is dynamically typed under the hood, it recognizes the follow
 
 ### File Extensions
 
-The compiler strips the `.tmp` extension from the source file to determine the output file name.
+The compiler strips the `.tmpl` extension from the source file to determine the output file name.
 
-* `main.tmp` $\rightarrow$ `main`
-* `index.html.tmp` $\rightarrow$ `index.html`
-* `query.sql.tmp` $\rightarrow$ `query.sql`
+* `main.tmpl` $\rightarrow$ `main`
+* `index.html.tmpl` $\rightarrow$ `index.html`
+* `query.sql.tmpl` $\rightarrow$ `query.sql`
 
 ### Execution Phases
 
