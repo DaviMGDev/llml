@@ -185,7 +185,7 @@ Dereference:
 Function types:
 
 ```txt
-adder: function[integer, integer] integer
+adder: function(integer, integer) integer
 ```
 
 Example:
@@ -881,15 +881,29 @@ A decorator may itself be `pure` if it does not introduce side effects. A `pure`
 
 # 24. Macros
 
-Macros execute during compilation.
+Macros are compile-time token templates.
 
-Macros generate source code.
+A macro takes tokens as input and produces tokens as output. After all macros
+are expanded, the compiler validates the resulting code normally — no different
+from hand-written code.
 
-Macros are not runtime features.
+Macros are not runtime features. They have no existence at runtime.
 
 ---
 
 ## Simple Macro
+
+Syntax:
+
+```txt
+macro name(param1, param2, ...) {
+    body
+}
+```
+
+Each parameter captures the tokens passed at the call site.
+
+Example:
 
 ```txt
 macro say(message) {
@@ -900,22 +914,38 @@ macro say(message) {
 Usage:
 
 ```txt
-say("hello")
+say("hello")    // → print("hello")
+say(42)          // → print(42)
+say(x + 1)       // → print(x + 1)
 ```
+
+Parameters are substituted as-is — no evaluation, no type checking. Type
+checking and validation happen after expansion.
 
 ---
 
 ## Block Macro
 
+A block macro accepts one or more brace-delimited blocks as additional
+parameters.
+
+Syntax:
+
 ```txt
-macro repeat(n)[code] {
+macro name(params...)[blockName] {
+    body
+}
+```
 
+A block parameter captures everything inside `{ }` at the call site as a
+single token tree (the braces are not included).
+
+Example:
+
+```txt
+macro repeat(n)[body] {
     .for i in 0..n {
-
-        .if i % 2 == 0 {
-
-            code
-        }
+        body
     }
 }
 ```
@@ -923,62 +953,157 @@ macro repeat(n)[code] {
 Usage:
 
 ```txt
-repeat(10) {
-    print("hello")
+repeat(3) {
+    print("hi")
 }
+```
+
+Expands to:
+
+```txt
+print("hi")
+print("hi")
+print("hi")
 ```
 
 ---
 
-## Macro Substitution
+## Substitution
 
-Macro variables are expanded using:
+### Bare names
+
+Inside a macro body, a **macro parameter name** appearing as a complete token
+is replaced by the captured tokens.
+
+```txt
+macro greet(name) {
+    print("hello, " + name)
+}
+```
+
+```txt
+greet("world")   // → print("hello, " + "world")
+```
+
+### ${name}
+
+`${name}` substitutes the tokens of a parameter or loop variable **in any
+position** — including inside larger token sequences where a bare name would
+not be recognized.
+
+Example — loop variables (which cannot use bare-name substitution):
+
+```txt
+.for i in 0..5 {
+    element${i} := list[${i}]
+}
+```
+
+Expands to:
+
+```txt
+element0 := list[0]
+element1 := list[1]
+element2 := list[2]
+element3 := list[3]
+element4 := list[4]
+```
+
+`${name}` is always valid for any parameter or loop variable.
+
+### Literal ${}
+
+To produce a literal `${name}` without substitution, prefix with a backslash:
+
+```txt
+\${name}
+```
+
+Output:
 
 ```txt
 ${name}
 ```
 
-Example:
+---
+
+## Directives
+
+Directives control macro expansion. They are only recognized inside macro
+bodies. All directives start with `.`. They are not valid outside macros.
+
+### .for
+
+Repeat a block of template tokens for each value in a range.
+
+Syntax:
 
 ```txt
-.for i in 0..10 {
-    ${i}
+.for name in start..end {
+    body
 }
 ```
 
-Expansion:
+- `name` is a loop variable available via `${name}`
+- `start` and `end` are integer literals
+- Upper bound `end` is exclusive
+- `.for` loops may be nested
+
+### .if / .else
+
+Conditionally include template tokens.
 
 ```txt
-0
-1
-2
-...
+.if condition {
+    body
+}
+
+.else {
+    body
+}
 ```
 
-Literal output:
+`condition` supports:
+
+- `<name>` — true if the parameter or loop variable is non-zero or non-empty
+- `<name> == <value>` — equality against a literal
+- `<name> % <n> == <r>` — modulo (useful with `.for` indices)
+
+`.else` is optional.
+
+Example:
 
 ```txt
-\${i}
+macro repeatEven(n)[body] {
+    .for i in 0..n {
+        .if i % 2 == 0 {
+            body
+        }
+    }
+}
 ```
-
-Expansion:
-
-```txt
-${i}
-```
-
-Macros are not required to generate valid code.
-
-Validation occurs after macro expansion.
-
 
 ---
 
-## Purity and Macros
+## What Macros Cannot Do
 
-Macro bodies execute at compile time and are exempt from purity restrictions — they may perform IO, mutate state, or call impure functions during compilation.
+- Call functions or execute arbitrary code at compile time
+- Perform IO (read files, print to console, network access, etc.)
+- Access runtime values, types, or variables
+- Define, modify, or inspect anything outside the generated token stream
+- Execute `.for` or `.if` outside a macro body
+- Use `.for` with non-integer bounds (compile-time error)
 
-Macro expansions that generate `pure function` declarations must respect purity guarantees in the generated code. The compiler validates the expanded code as if it were written directly.
+Macros only rearrange tokens. Nothing else.
+
+---
+
+## Generated Code
+
+Expanded code is parsed and validated exactly like hand-written code. There
+is no special exemption for purity, types, contracts, or any other language
+rule. If a macro generates invalid code, the compiler reports an ordinary
+compile error.
 
 ---
 
@@ -1321,12 +1446,6 @@ Every implementation of a `pure` interface method must also satisfy the purity g
 ## Purity and Decorators
 
 A decorator may be `pure` if it introduces no side effects. A `pure` function may only be decorated with a `pure` decorator.
-
-## Purity and Macros
-
-Macro bodies execute during compilation and are exempt from purity restrictions — they may perform IO or mutate state during compilation.
-
-Macro expansions that generate `pure function` declarations must respect purity guarantees in the generated code. The compiler validates the expanded code as if it were written directly.
 
 ## Default Rule
 
