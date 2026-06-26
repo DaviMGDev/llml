@@ -1,69 +1,104 @@
-// this is a toy language only. 
-// name: llm language 
-// the objective of this language is to merge deterministic programming with llms
+// LLML - LLM Language
+// A toy language that merges deterministic programming with LLMs.
 
-// one of the main features are the "~=" operator to semantically compare two objects(or values) and return a boolean value.
+
+// ============================================================
+// 1. Semantic comparison with ~=
+// ============================================================
+
+// The ~= operator compares two objects/values semantically and returns a boolean.
+
+// --- Value ~= type ---
 if ("hi" ~= "greeting") {
     print("hi is a greeting")
 } else {
     print("hi is not a greeting")
 }
-/*
-<value> ~= <type> is supported 
-<value of type A> ~= <value of type B> is supported 
-if a value can be deterministically compared, no need to use llm to compare it. like 20 ~= 20 which is true, also 20 ~= 20.01 can be true, because it is similar and can be done with deterministic programming.
-<object> ~= <object> is supported 
-<object> ~= <type> is also supported. suppose that we have a struct called "Natural":
+
+// --- Value ~= value ---
+// Deterministic comparisons are resolved without calling an LLM.
+// 20 ~= 20         -> true
+// 20 ~= 20.01      -> true  (similar numbers)
+
+// --- Object ~= type ---
 type Natural struct {
     value int
 }
-Natural{value: 20} ~= int // is true 
-Natural{value: 20} ~= "number" // is true 
-Natural{value: 20} ~= "can be a age" // is true 
-// go on 
-// other cases will be added in this example some day. 
-*/
 
-// btw, we have a builtin function named "prompt" which can be used to prompt the main agent 
-response := prompt("what is the meaning of life?") // the default result is a string 
-var value Response[int] = prompt("what is 2 + 2?") // but if you want to get a specific type, you need to specify the type in the Response 
+Natural{value: 20} ~= int           // true
+Natural{value: 20} ~= "number"      // true
+Natural{value: 20} ~= "can be a age" // true
 
-// you can create a tool to the llm use:
+// --- Object ~= object ---
+// <object> ~= <object> is also supported.
+
+
+// ============================================================
+// 2. Prompting the agent
+// ============================================================
+
+// Default prompt result is a string.
+response := prompt("what is the meaning of life?")
+
+// To get a specific type, wrap it in Response[T].
+var value Response[int] = prompt("what is 2 + 2?")
+
+
+// ============================================================
+// 3. Tools for the LLM
+// ============================================================
+
+// Use the @tool decorator to expose a function to the LLM.
 @tool("this is a tool to get the weather of a city")
 func getWeather(city string) string {
     return "sunny"
 }
 
-print(prompt("what is the weather of New York?")) // the llm will use the tool to get the weather of New York and return the result. 
+// The LLM can invoke the tool automatically when needed.
+print(prompt("what is the weather of New York?"))
 
-// to create new agents:
+
+// ============================================================
+// 4. Subagents
+// ============================================================
+
 agent Planner {
     system := "You are a planner agent. You can plan things for the user."
-    tools := {getWeather} // subagents needs to explicitly specify the tools they can use.
 
-    // you can define internal attributes for the agent, but they are only accessible if you define internal tools for the agent that access them.
-    // or functions. functions/methods are not accessible to the llm, tools need to be defined using the @tool decorator.
+    // Subagents must explicitly declare the tools they can use.
+    tools := {getWeather}
+
+    // Internal attributes are only accessible via internal tools or methods.
     attribute := "value"
-    func method() string { // will not be accessible to the llm, but can be used by the tools.
-        return this.attribute 
+
+    // Methods are not exposed to the LLM; tools can call them internally.
+    func method() string {
+        return this.attribute
     }
 
     @tool("this is a tool to get the attribute of the agent")
     func getAttribute() string {
-        return method() // can use the internal method to get the attribute.
-        // simply return this.attribute would also work
+        return method()
+        // return this.attribute would also work
     }
 }
 
-// the subagent cant be used by the llm, unless that we implement a tool that invokes subagents.
-// to call a subagent, simply call them
-Planner.prompt("what is the weather of New York?") // the llm will use the tool to get the weather of New York and return the result.
-Planner.prompt("get your internal attribute") // the llm will use the tool to get the internal attribute of the agent and return the result.
-print(Planner.method()) // will print "value" because the method is accessible to the main program, but not to the llm.
+// Subagents are not automatically available to the LLM unless exposed through a tool.
+// You can call a subagent directly from the main program.
+Planner.prompt("what is the weather of New York?")
+Planner.prompt("get your internal attribute")
 
-// btw, a good feature that is not directly related to llms, but can be really useful is to have event system in that language.
+// Methods belong to the agent object and are callable from the main program.
+print(Planner.method()) // prints: value
+
+
+// ============================================================
+// 5. Event system
+// ============================================================
+
+// Define, emit and listen to events.
 event Event {
-    id int 
+    id int
 }
 
 emit Event {
@@ -74,8 +109,10 @@ on Event {
     print("event received with id: " + Event.id)
 }
 
+// Events can also be declared inside classes. They are scoped to their owner.
 class Person {
-    name string 
+    name string
+
     func greet() {
         emit Greet {
             who: this.name
@@ -83,7 +120,7 @@ class Person {
     }
 
     event Greet {
-        who string 
+        who string
     }
 
     on Greet {
@@ -91,17 +128,23 @@ class Person {
     }
 }
 
+// Emit and listen using the class-qualified event name.
 emit Person.Greet {
     who: "Alice"
 }
 
 on Person.Greet {
     print("greet event received from: " + Person.Greet.who)
-} 
+}
 
-// the event system can be used inside and outside a class. but the event is bounded to the scope.
 
-// btw, the agents have builtin events. subagents also have the same events of the main agent. the main agent dont need to access the events as members.
+// ============================================================
+// 6. Built-in agent events
+// ============================================================
+
+// Every agent (including the main agent and subagents) has built-in events.
+
+// Main agent events can be listened to directly.
 on UserInput {
     print("user input received: " + UserInput.input)
 }
@@ -110,8 +153,7 @@ on AgentResponse {
     print("agent response received: " + AgentResponse.response)
 }
 
-// or
-
+// Subagent events are accessed through the agent name.
 on Planner.UserInput {
     print("user input received: " + Planner.UserInput.input)
 }
@@ -120,6 +162,11 @@ on Planner.AgentResponse {
     print("agent response received: " + Planner.AgentResponse.response)
 }
 
-// this all can be used 
-// since this is a toy language, A LOT of details were omitted. the syntax might be a bit different from the possible implementation. the language will also be a transpiled language to golang to take advantage of the concurrency and performance of golang. because of that, a lot of things might be different to respect golang limitations. but the main idea is to have a language that can be used to create agents easily with a DSL like syntax instead of the verbosity of frameworks.
 
+// ============================================================
+// Notes
+// ============================================================
+
+// This is a toy language; many implementation details are intentionally omitted.
+// The final syntax may differ, especially because LLML is planned to be
+// transpiled to Go to leverage Go's concurrency and performance.
